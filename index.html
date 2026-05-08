@@ -19,7 +19,7 @@
             const stored = sessionStorage.getItem('bt_user');
 
             if (!stored && isConfigured) {
-                window.location.href = 'login.html';
+                window.location.href = 'https://atharvachhabra2012.github.io/kinetic/login.html';
                 return;
             }
             if (stored) {
@@ -32,7 +32,7 @@
                             _supabase.auth.getSession().then(({ data }) => {
                                 if (!data.session) {
                                     sessionStorage.removeItem('bt_user');
-                                    window.location.href = 'login.html';
+                                    window.location.href = 'https://atharvachhabra2012.github.io/kinetic/login.html';
                                 }
                             });
                         } else {
@@ -73,7 +73,7 @@
             } catch (e) { console.warn('Error clearing localStorage keys:', e); }
 
             sessionStorage.removeItem('bt_user');
-            window.location.href = 'login.html';
+            window.location.href = 'https://atharvachhabra2012.github.io/kinetic/login.html';
         }
     </script>
     <style>
