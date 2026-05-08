@@ -146,7 +146,7 @@ async function go() {
       } else {
         storeUser(data.user, name);
         showOk('\u2713 Account created! Loading\u2026');
-        setTimeout(() => location.href = 'main.html', 600);
+        setTimeout(() => location.href = 'index.html', 600);
       }
     }
   } catch(e) { showErr(e.message || 'Something went wrong.'); }
