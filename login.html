@@ -137,7 +137,7 @@ async function go() {
       if (error) throw error;
       storeUser(data.user);
       showOk('\u2713 Signed in! Loading\u2026');
-      setTimeout(() => location.href = 'main.html', 600);
+      setTimeout(() => location.href = 'https://atharvachhabra2012.github.io/kinetic/index.html', 600);
     } else {
       const { data, error } = await sb.auth.signUp({ email, password: pwd, options: { data: { name } } });
       if (error) throw error;
