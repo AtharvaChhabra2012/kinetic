@@ -3624,13 +3624,6 @@
         setupDropdown('itemStatusToggle', 'itemStatusMenu', 'itemStatusLabel', 'item-status');
         setupDropdown('reportTypeToggle', 'reportTypeMenu', 'reportTypeLabel', 'report-type');
 
-        document.getElementById('addItemForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const name = document.getElementById('item-name').value;
-            showToast(`📦 "${name}" added to inventory!`);
-            closeAddItemModal();
-        });
-
         document.getElementById('restockForm').addEventListener('submit', (e) => {
             e.preventDefault();
             showToast('🔄 Inventory restock confirmed!');
