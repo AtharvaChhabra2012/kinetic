@@ -3623,8 +3623,53 @@
             });
         }
 
-        setupDropdown('itemStatusToggle', 'itemStatusMenu', 'itemStatusLabel', 'item-status');
         setupDropdown('reportTypeToggle', 'reportTypeMenu', 'reportTypeLabel', 'report-type');
+
+// Fixed-position dropdown for addItemModal to avoid clipping
+(function() {
+    const toggle = document.getElementById('itemStatusToggle');
+    const menu = document.getElementById('itemStatusMenu');
+    const label = document.getElementById('itemStatusLabel');
+    const input = document.getElementById('item-status');
+    if (!toggle || !menu) return;
+
+    // Move menu to body so nothing clips it
+    document.body.appendChild(menu);
+    menu.style.position = 'fixed';
+    menu.style.zIndex = '99999';
+    menu.style.width = '';
+
+    toggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const rect = toggle.getBoundingClientRect();
+        menu.style.top = (rect.bottom + 8) + 'px';
+        menu.style.left = rect.left + 'px';
+        menu.style.width = rect.width + 'px';
+        menu.classList.toggle('active');
+        toggle.classList.toggle('active');
+    });
+
+    menu.querySelectorAll('.dropdown-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            input.value = item.dataset.value;
+            label.textContent = item.textContent.trim();
+            menu.classList.remove('active');
+            toggle.classList.remove('active');
+            menu.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('selected'));
+            item.classList.add('selected');
+        });
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#itemStatusToggle') && !e.target.closest('#itemStatusMenu')) {
+            menu.classList.remove('active');
+            toggle.classList.remove('active');
+        }
+    });
+})();
 
         document.getElementById('addItemForm').addEventListener('submit', (e) => {
             e.preventDefault();
