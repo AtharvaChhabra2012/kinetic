@@ -10,11 +10,26 @@
     <script>
         const SUPABASE_URL = 'https://mgnbxkbvpfrwinfvmorc.supabase.co/rest/v1/';
         const SUPABASE_ANON_KEY = 'sb_publishable_PHr3_x2qmxPOFnGI9vyUPw_lWFrL_kk';
-        const GEMINI_API_KEY = 'AQ.Ab8RN6LzxfNyJDBkWyGP541ClJLaPXH7MBc8iCe5cV4Cll2lOg';
+
+        // Enter your Gemini API key here in index.html, or leave this placeholder and store the key in localStorage.
+        const GEMINI_API_KEY_DIRECT = 'AQ.Ab8RN6KE29NbdNeejBUum_kO1IXR61YLJvoDiMEn7EPYlBBqKQ';
         const GEMINI_MODEL = 'gemini-3.5-flash';
 
+        function getGeminiApiKey() {
+            if (typeof GEMINI_API_KEY_DIRECT === 'string' && GEMINI_API_KEY_DIRECT !== 'YOUR_GEMINI_API_KEY_HERE') {
+                return GEMINI_API_KEY_DIRECT.trim();
+            }
+            try {
+                return localStorage.getItem('kinetic_gemini_api_key')?.trim() || '';
+            } catch (error) {
+                return '';
+            }
+        }
+
+        const GEMINI_API_KEY = getGeminiApiKey();
+
         function isValidGeminiApiKey(value) {
-            return typeof value === 'string' && /^(?:AIza|AQ)[0-9A-Za-z\-_]{35,}$/.test(value.trim());
+            return typeof value === 'string' && /^(?:AIza|AQ\.)[0-9A-Za-z\-_]{35,}$/.test(value.trim());
         }
 
         let _currentUser = null;
@@ -4816,12 +4831,17 @@
         .modal-panel {
             position: relative;
             pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
             background: linear-gradient(135deg, rgba(20,20,22,0.95) 0%, rgba(30,25,35,0.95) 100%);
             border: 1px solid rgba(129, 140, 248, 0.2);
             border-radius: 20px;
             padding: 28px;
             width: calc(100% - 40px);
-            max-width: 440px;
+            max-width: 720px;
+            max-height: calc(100vh - 40px);
+            overflow: hidden;
             box-shadow:
                 0 20px 60px rgba(0,0,0,0.5),
                 0 0 40px rgba(129, 140, 248, 0.1);
@@ -4925,17 +4945,35 @@
         }
 
         .ai-overview-output {
-            min-height: 180px;
-            max-height: 280px;
-            overflow: auto;
+            flex: 1 1 auto;
+            min-height: 260px;
+            max-height: 360px;
+            overflow-y: auto;
+            overflow-x: hidden;
             border-radius: 14px;
-            padding: 14px 16px;
-            background: rgba(255, 255, 255, 0.04);
+            padding: 16px 18px;
+            background: rgba(255, 255, 255, 0.06);
             border: 1px solid rgba(129, 140, 248, 0.18);
             color: rgba(255, 255, 255, 0.88);
             font-size: 13px;
             line-height: 1.6;
             white-space: pre-wrap;
+            word-break: break-word;
+            min-width: 0;
+        }
+
+        .ai-overview-output::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .ai-overview-output::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 999px;
+        }
+
+        .ai-overview-output::-webkit-scrollbar-thumb {
+            background: rgba(129, 140, 248, 0.45);
+            border-radius: 999px;
         }
 
         .form-group {
@@ -6084,8 +6122,11 @@
             }
 
             if (!isValidGeminiApiKey(GEMINI_API_KEY)) {
-                aiOverviewOutput.textContent = 'A valid Google AI Studio key is required for live Gemini replies. The app is using the local snapshot fallback until a real key is configured.';
-                showToast('⚠️ Add a valid Gemini key to enable live AI replies', 'error');
+                const sourceMessage = GEMINI_API_KEY_DIRECT !== 'YOUR_GEMINI_API_KEY_HERE'
+                    ? 'The key in index.html is invalid or malformed.'
+                    : 'No Gemini key is configured in index.html or localStorage.';
+                aiOverviewOutput.textContent = `${sourceMessage} A valid Google AI Studio key is required for live Gemini replies. The app is using the local snapshot fallback until a real key is configured.`;
+                showToast('⚠️ Add or fix your Gemini key in index.html', 'error');
                 return;
             }
 
@@ -6097,49 +6138,123 @@
                 const payload = buildAiOverviewPayload();
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 8000);
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    signal: controller.signal,
-                    body: JSON.stringify({
-                        contents: [{
-                            role: 'user',
-                            parts: [{
-                                text: `You are a business operations assistant for this app. Use the business data in the snapshot to answer the user. Keep the answer concise, practical, and in plain English. User question: ${typedPrompt}\n\nBusiness snapshot:\n\n${JSON.stringify(payload, null, 2)}`
-                            }]
-                        }],
-                        generationConfig: {
-                            temperature: 0.3,
-                            maxOutputTokens: 220
-                        }
-                    })
-                });
-                clearTimeout(timeoutId);
+                let response = null;
+                try {
+                    response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        signal: controller.signal,
+                                body: JSON.stringify({
+                            contents: [{
+                                role: 'user',
+                                parts: [{
+                                    text: `You are a business operations assistant for this app. Use the business data in the snapshot to answer the user. Keep the answer concise, practical, and in plain English. User question: ${typedPrompt}\n\nBusiness snapshot:\n\n${JSON.stringify(payload, null, 2)}`
+                                }]
+                            }],
+                            generationConfig: {
+                                temperature: 0.3,
+                                maxOutputTokens: 1024
+                            }
+                        })
+                    });
+                } finally {
+                    clearTimeout(timeoutId);
+                }
 
                 const result = await response.json().catch(() => null);
-                const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                const text = extractGeminiText(result);
                 if (!response.ok || !text) {
                     const rawError = result?.error?.message || await response.text().catch(() => '');
-                    throw new Error(rawError || 'Gemini request failed.');
+                    const statusError = response ? `HTTP ${response.status}: ` : '';
+                    throw new Error(statusError + (rawError || 'Gemini request failed.'));
                 }
 
                 aiOverviewOutput.textContent = text.trim();
+                requestAnimationFrame(() => {
+                    aiOverviewOutput.scrollTop = aiOverviewOutput.scrollHeight;
+                });
                 aiOverviewPromptInput.value = '';
                 showToast('✨ AI response ready');
             } catch (error) {
                 const fallbackSummary = buildFallbackAiSummary(buildAiOverviewPayload(), typedPrompt);
                 const rawError = String(error?.message || '');
                 const authIssue = /401|unauthorized|api key|forbidden|not found/i.test(rawError);
-                const note = authIssue
-                    ? '\n\nNote: the current Gemini key or model was rejected by Google, so the app is using a local fallback. Store a real Google AI Studio key that begins with AIza... in localStorage under kinetic_gemini_api_key for live Gemini replies.'
+                const statusNote = /Failed to fetch|network error|abort/i.test(rawError)
+                    ? '\n\nNote: the request did not reach Gemini. This can happen in local file builds or because the browser blocked the request.'
                     : '';
-                aiOverviewOutput.textContent = `${fallbackSummary}${note}`;
+                const note = authIssue
+                    ? '\n\nNote: the current Gemini key or model was rejected by Google, so the app is using a local fallback. Store a real Google AI Studio key that begins with AIza... for live Gemini replies.'
+                    : statusNote;
+                aiOverviewOutput.textContent = `${fallbackSummary}${note}\n\nError: ${rawError}`;
+                requestAnimationFrame(() => {
+                    aiOverviewOutput.scrollTop = aiOverviewOutput.scrollHeight;
+                });
                 aiOverviewPromptInput.value = '';
                 showToast(authIssue ? '💡 Gemini key issue — using local fallback' : '💡 Gemini is unavailable right now — showing the local snapshot response', 'error');
             } finally {
                 aiOverviewSendBtn.disabled = false;
                 aiOverviewSendBtn.textContent = 'Send';
             }
+        }
+
+        function extractGeminiText(result) {
+            if (!result || typeof result !== 'object') return '';
+
+            const seen = new WeakSet();
+            const collected = new Set();
+            const lines = [];
+            const tokenLike = (value) => {
+                if (typeof value !== 'string') return false;
+                const trimmed = value.trim();
+                if (trimmed.length < 40) return false;
+                if (!/\s/.test(trimmed) && /^[A-Za-z0-9+/=._-]+$/.test(trimmed)) return true;
+                const charRatio = (trimmed.match(/[A-Za-z0-9+/=]/g) || []).length / trimmed.length;
+                return charRatio > 0.75 && !/[\n]/.test(trimmed);
+            };
+
+            const addString = (text) => {
+                if (typeof text !== 'string') return;
+                text.split(/\r?\n/).forEach((segment) => {
+                    const trimmed = segment.trim();
+                    if (!trimmed) return;
+                    if (tokenLike(trimmed)) return;
+                    if (!collected.has(trimmed)) {
+                        collected.add(trimmed);
+                        lines.push(trimmed);
+                    }
+                });
+            };
+
+            const parseNode = (node) => {
+                if (!node || typeof node !== 'object') return;
+                if (seen.has(node)) return;
+                seen.add(node);
+
+                if (typeof node.text === 'string') addString(node.text);
+                if (typeof node.output_text === 'string') addString(node.output_text);
+                if (typeof node.transcript === 'string') addString(node.transcript);
+                if (typeof node.message === 'string') addString(node.message);
+                if (typeof node.response === 'string') addString(node.response);
+
+                if (Array.isArray(node.parts)) node.parts.forEach(parseNode);
+                if (Array.isArray(node.content)) node.content.forEach(parseNode);
+                if (Array.isArray(node.output)) node.output.forEach(parseNode);
+                if (Array.isArray(node.candidates)) node.candidates.forEach(parseNode);
+                if (Array.isArray(node.responses)) node.responses.forEach(parseNode);
+
+                if (typeof node.candidate === 'object') parseNode(node.candidate);
+                if (typeof node.message === 'object') parseNode(node.message);
+                if (typeof node.response === 'object') parseNode(node.response);
+                if (typeof node.result === 'object') parseNode(node.result);
+            };
+
+            if (Array.isArray(result.candidates) && result.candidates.length) {
+                parseNode(result.candidates[0]);
+            } else {
+                parseNode(result);
+            }
+
+            return lines.join('\n').trim();
         }
 
         function buildAiOverviewPayload() {
