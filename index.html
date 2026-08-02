@@ -10,8 +10,12 @@
     <script>
         const SUPABASE_URL = 'https://mgnbxkbvpfrwinfvmorc.supabase.co/rest/v1/';
         const SUPABASE_ANON_KEY = 'sb_publishable_PHr3_x2qmxPOFnGI9vyUPw_lWFrL_kk';
-        const GEMINI_API_KEY = 'AQ.Ab8RN6JmrcprcGxxD-1nOqcVUtVY9869YXRqaKA1niLiDfrd2A';
-        const GEMINI_MODEL = 'gemini-3.6-flash';
+        const GEMINI_API_KEY = 'AQ.Ab8RN6LzxfNyJDBkWyGP541ClJLaPXH7MBc8iCe5cV4Cll2lOg';
+        const GEMINI_MODEL = 'gemini-3.5-flash';
+
+        function isValidGeminiApiKey(value) {
+            return typeof value === 'string' && /^(?:AIza|AQ)[0-9A-Za-z\-_]{35,}$/.test(value.trim());
+        }
 
         let _currentUser = null;
         let _supabase = null;
@@ -2757,13 +2761,16 @@
     <div id="aiOverviewModal" class="modal" aria-hidden="true">
         <div class="modal-backdrop"></div>
         <div class="modal-panel">
+            <button type="button" class="ai-overview-close" id="aiOverviewClose" aria-label="Close AI overview">×</button>
             <h3 class="modal-title">✨ AI Overview</h3>
             <div class="ai-overview-content">
-                <div class="ai-overview-label">Business Gemini key enabled</div>
                 <div class="ai-overview-output" id="aiOverviewOutput">Your business snapshot will appear here after the AI summarizes the stored information.</div>
-                <div class="ai-overview-actions">
-                    <button type="button" class="btn-cancel" id="aiOverviewCancel">Close</button>
-                    <button type="button" class="btn-submit" id="aiOverviewGenerate">Generate Summary</button>
+                <div class="ai-overview-prompt-wrap">
+                    <label class="ai-overview-label" for="aiOverviewPrompt">Ask the AI</label>
+                    <div class="ai-overview-composer">
+                        <textarea id="aiOverviewPrompt" class="ai-overview-prompt" placeholder="Type a prompt like: summarize my business, or add invoice for Alex for ₹5000 overdue"></textarea>
+                        <button type="button" class="btn-submit ai-overview-send" id="aiOverviewSend">Send</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -4822,13 +4829,36 @@
         }
 
         .modal-title {
-            margin: 0 0 24px 0;
+            margin: 0 0 18px 0;
             font-size: 20px;
             font-weight: 700;
             background: linear-gradient(135deg, #818cf8 0%, #a78bfa 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+        }
+
+        .ai-overview-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.06);
+            color: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ai-overview-close:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: white;
         }
 
         .ai-overview-content {
@@ -4845,6 +4875,55 @@
             letter-spacing: 0.4px;
         }
 
+        .ai-overview-prompt-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .ai-overview-composer {
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        .ai-overview-prompt {
+            flex: 1;
+            min-height: 78px;
+            max-height: 120px;
+            resize: vertical;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(129, 140, 248, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            font-size: 13px;
+            line-height: 1.5;
+            font-family: inherit;
+        }
+
+        .ai-overview-prompt::placeholder {
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+        .ai-overview-prompt:focus {
+            outline: none;
+            border-color: rgba(129, 140, 248, 0.55);
+            box-shadow: 0 0 12px rgba(129, 140, 248, 0.2);
+        }
+
+        .ai-overview-send {
+            min-width: 64px;
+            min-height: 38px;
+            height: 38px;
+            align-self: flex-end;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
         .ai-overview-output {
             min-height: 180px;
             max-height: 280px;
@@ -4857,17 +4936,6 @@
             font-size: 13px;
             line-height: 1.6;
             white-space: pre-wrap;
-        }
-
-        .ai-overview-actions {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .ai-overview-actions button {
-            flex: 1;
-            min-width: 120px;
         }
 
         .form-group {
@@ -5036,6 +5104,18 @@
             transition: all 0.3s ease;
             font-family: inherit;
             box-shadow: 0 8px 20px rgba(129, 140, 248, 0.3);
+        }
+
+        .btn-submit.ai-overview-send {
+            flex: 0 0 auto;
+            min-width: 64px;
+            min-height: 38px;
+            height: 38px;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 700;
+            border-radius: 12px;
+            box-shadow: 0 6px 16px rgba(129, 140, 248, 0.22);
         }
 
         .btn-submit:hover {
@@ -5844,8 +5924,9 @@
 
         const aiOverviewModal = document.getElementById('aiOverviewModal');
         const aiOverviewOutput = document.getElementById('aiOverviewOutput');
-        const aiOverviewGenerateBtn = document.getElementById('aiOverviewGenerate');
-        const aiOverviewCancelBtn = document.getElementById('aiOverviewCancel');
+        const aiOverviewPromptInput = document.getElementById('aiOverviewPrompt');
+        const aiOverviewSendBtn = document.getElementById('aiOverviewSend');
+        const aiOverviewCloseBtn = document.getElementById('aiOverviewClose');
 
         function openAiOverviewModal() {
             if (!aiOverviewModal) return;
@@ -5859,7 +5940,206 @@
             if (!aiOverviewModal) return;
             aiOverviewModal.setAttribute('aria-hidden', 'true');
             aiOverviewModal.style.display = 'none';
+            if (aiOverviewPromptInput) aiOverviewPromptInput.value = '';
             if (aiOverviewOutput) aiOverviewOutput.textContent = 'Your business snapshot will appear here after the AI summarizes the stored information.';
+        }
+
+        function extractAmount(text) {
+            const amountMatch = text.match(/(?:rs|inr|rupees?|₹)\s*([0-9]+(?:,[0-9]{3})*(?:\.[0-9]+)?)/i)
+                || text.match(/\b([0-9]+(?:,[0-9]{3})*(?:\.[0-9]+)?)\b/);
+            if (!amountMatch) return null;
+            const value = Number(String(amountMatch[1]).replace(/,/g, ''));
+            return Number.isFinite(value) ? value : null;
+        }
+
+        function extractStatus(text) {
+            const lower = text.toLowerCase();
+            if (lower.includes('overdue')) return 'overdue';
+            if (lower.includes('due soon') || lower.includes('due soon') || lower.includes('due-soon')) return 'due-soon';
+            if (lower.includes('upcoming')) return 'upcoming';
+            return 'upcoming';
+        }
+
+        function extractCustomerName(text) {
+            const match = text.match(/(?:for|client|customer)\s+([A-Za-z][A-Za-z0-9 .'-]+)/i);
+            return match ? match[1].trim() : 'Client';
+        }
+
+        function extractEmail(text) {
+            const match = text.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/i);
+            return match ? match[0] : '';
+        }
+
+        function extractPhone(text) {
+            const match = text.match(/\b(?:\+?\d{1,3}[-. ]?)?(?:\(?\d{3}\)?[-. ]?\d{3}[-. ]?\d{4})\b/);
+            return match ? match[0] : '';
+        }
+
+        function inferCategory(text) {
+            const lower = text.toLowerCase();
+            if (lower.includes('marketing')) return 'marketing';
+            if (lower.includes('server')) return 'server';
+            if (lower.includes('subscription')) return 'subscriptions';
+            return 'other';
+        }
+
+        function inferType(text) {
+            const lower = text.toLowerCase();
+            if (lower.includes('enterprise')) return 'enterprise';
+            if (lower.includes('startup')) return 'startup';
+            return 'individual';
+        }
+
+        function runAiCommandFromPrompt(prompt) {
+            const cleanPrompt = (prompt || '').trim();
+            if (!cleanPrompt) return null;
+            const lower = cleanPrompt.toLowerCase();
+
+            if (/\b(add|create|new)\b.*\binvoice\b/.test(lower)) {
+                const amount = extractAmount(cleanPrompt);
+                const client = extractCustomerName(cleanPrompt);
+                const status = extractStatus(cleanPrompt);
+                const note = cleanPrompt.replace(/\b(add|create|new)\b.*\binvoice\b/i, '').trim() || `Invoice for ${client}`;
+                if (!amount) {
+                    return { ok: false, message: 'I could not find the invoice amount. Try: add invoice for Alex ₹5000 overdue.' };
+                }
+                dataManager.addInvoice(client, amount, status, note);
+                renderInvoices(document.querySelector('.invoice-filter.active')?.textContent || 'All');
+                refreshDashboard();
+                return { ok: true, message: `Invoice added for ${client} for ₹${amount.toLocaleString()} (${status}).` };
+            }
+
+            if (/\b(add|create|new)\b.*\b(client|customer)\b/.test(lower)) {
+                const nameMatch = cleanPrompt.match(/(?:client|customer)\s+(?:named\s+)?([A-Za-z][A-Za-z0-9 .'-]+)/i);
+                const name = nameMatch ? nameMatch[1].trim() : extractCustomerName(cleanPrompt);
+                const email = extractEmail(cleanPrompt) || `${name.toLowerCase().replace(/\s+/g, '.')}@example.com`;
+                const phone = extractPhone(cleanPrompt);
+                const type = inferType(cleanPrompt);
+                const address = cleanPrompt.match(/(?:at|from)\s+([A-Za-z0-9 .,]+)$/i)?.[1]?.trim() || '';
+                dataManager.addCustomer(name, email, type, phone, address);
+                renderCustomers(document.querySelector('.customers-filter-pill.active')?.textContent?.trim() || 'All');
+                refreshDashboard();
+                return { ok: true, message: `Client ${name} added successfully.` };
+            }
+
+            if (/\b(add|create|new)\b.*\b(expense|spend)\b/.test(lower)) {
+                const amount = extractAmount(cleanPrompt);
+                const category = inferCategory(cleanPrompt);
+                const name = cleanPrompt.replace(/\b(add|create|new)\b.*\b(expense|spend)\b/i, '').replace(/(?:for|of|amount|₹|rs|inr)/gi, '').trim() || 'Expense';
+                if (!amount) {
+                    return { ok: false, message: 'I could not find the expense amount. Try: add expense server cost ₹1200.' };
+                }
+                dataManager.addExpense(name || 'Expense', amount, category);
+                expenses = loadExpenses();
+                updateExpenseMetrics();
+                renderExpensesList();
+                refreshDashboard();
+                return { ok: true, message: `Expense ${name || 'Expense'} added for ₹${amount.toLocaleString()}.` };
+            }
+
+            if (/\b(add|create|new)\b.*\b(transaction|payment)\b/.test(lower)) {
+                const amount = extractAmount(cleanPrompt);
+                const type = lower.includes('outgoing') ? 'outgoing' : 'incoming';
+                const title = cleanPrompt.replace(/\b(add|create|new)\b.*\b(transaction|payment)\b/i, '').replace(/(?:₹|rs|inr|for|of)/gi, '').trim() || 'Transaction';
+                if (!amount) {
+                    return { ok: false, message: 'I could not find the transaction amount. Try: add transaction salary ₹40000 incoming.' };
+                }
+                dataManager.addPayout(title || 'Transaction', amount, type);
+                renderPayouts(document.querySelector('.payout-filter.active')?.textContent?.trim() || 'All');
+                refreshDashboard();
+                return { ok: true, message: `${type === 'incoming' ? 'Incoming' : 'Outgoing'} transaction added for ₹${amount.toLocaleString()}.` };
+            }
+
+            if (/\b(add|create|new)\b.*\b(stock|item|product)\b/.test(lower)) {
+                const amount = extractAmount(cleanPrompt);
+                const quantity = Number((cleanPrompt.match(/\b(\d+)\s*(?:units?|qty|quantity)\b/i)?.[1] || '1'));
+                const name = cleanPrompt.replace(/\b(add|create|new)\b.*\b(stock|item|product)\b/i, '').replace(/(?:₹|rs|inr|units?|qty|quantity|for|of)/gi, '').trim() || 'Stock Item';
+                const price = amount || 0;
+                const status = lower.includes('low') ? 'low' : lower.includes('medium') ? 'medium' : 'good';
+                dataManager.addProduct(name, price, quantity, status);
+                stockItems = dataManager.getData().products;
+                saveStockItems(stockItems);
+                initStockScreen();
+                refreshDashboard();
+                return { ok: true, message: `Stock item ${name} added with ${quantity} units at ₹${price.toLocaleString()}.` };
+            }
+
+            return null;
+        }
+
+        async function askAiOverview(prompt) {
+            const typedPrompt = (prompt || '').trim();
+            if (!typedPrompt) {
+                aiOverviewOutput.textContent = 'Type a prompt to ask the AI.';
+                showToast('Please type a prompt first', 'error');
+                return;
+            }
+
+            const commandResult = runAiCommandFromPrompt(typedPrompt);
+            if (commandResult) {
+                aiOverviewOutput.textContent = commandResult.message;
+                aiOverviewPromptInput.value = '';
+                showToast(commandResult.ok ? '✅ Action completed' : commandResult.message, commandResult.ok ? 'success' : 'error');
+                return;
+            }
+
+            if (!isValidGeminiApiKey(GEMINI_API_KEY)) {
+                aiOverviewOutput.textContent = 'A valid Google AI Studio key is required for live Gemini replies. The app is using the local snapshot fallback until a real key is configured.';
+                showToast('⚠️ Add a valid Gemini key to enable live AI replies', 'error');
+                return;
+            }
+
+            aiOverviewOutput.textContent = 'Thinking...';
+            aiOverviewSendBtn.disabled = true;
+            aiOverviewSendBtn.textContent = 'Thinking...';
+
+            try {
+                const payload = buildAiOverviewPayload();
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000);
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    signal: controller.signal,
+                    body: JSON.stringify({
+                        contents: [{
+                            role: 'user',
+                            parts: [{
+                                text: `You are a business operations assistant for this app. Use the business data in the snapshot to answer the user. Keep the answer concise, practical, and in plain English. User question: ${typedPrompt}\n\nBusiness snapshot:\n\n${JSON.stringify(payload, null, 2)}`
+                            }]
+                        }],
+                        generationConfig: {
+                            temperature: 0.3,
+                            maxOutputTokens: 220
+                        }
+                    })
+                });
+                clearTimeout(timeoutId);
+
+                const result = await response.json().catch(() => null);
+                const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!response.ok || !text) {
+                    const rawError = result?.error?.message || await response.text().catch(() => '');
+                    throw new Error(rawError || 'Gemini request failed.');
+                }
+
+                aiOverviewOutput.textContent = text.trim();
+                aiOverviewPromptInput.value = '';
+                showToast('✨ AI response ready');
+            } catch (error) {
+                const fallbackSummary = buildFallbackAiSummary(buildAiOverviewPayload(), typedPrompt);
+                const rawError = String(error?.message || '');
+                const authIssue = /401|unauthorized|api key|forbidden|not found/i.test(rawError);
+                const note = authIssue
+                    ? '\n\nNote: the current Gemini key or model was rejected by Google, so the app is using a local fallback. Store a real Google AI Studio key that begins with AIza... in localStorage under kinetic_gemini_api_key for live Gemini replies.'
+                    : '';
+                aiOverviewOutput.textContent = `${fallbackSummary}${note}`;
+                aiOverviewPromptInput.value = '';
+                showToast(authIssue ? '💡 Gemini key issue — using local fallback' : '💡 Gemini is unavailable right now — showing the local snapshot response', 'error');
+            } finally {
+                aiOverviewSendBtn.disabled = false;
+                aiOverviewSendBtn.textContent = 'Send';
+            }
         }
 
         function buildAiOverviewPayload() {
@@ -5891,79 +6171,47 @@
             };
         }
 
-        function buildFallbackAiSummary(payload) {
+        function buildFallbackAiSummary(payload, prompt = '') {
             const summary = payload.summary || {};
             const topCustomers = (payload.customers || []).slice(0, 3).map(c => c.name || 'Unnamed customer').join(', ');
             const lowStock = (payload.products || []).filter(p => p.quantity <= 5 || p.status === 'low').slice(0, 3).map(p => `${p.name} (${p.quantity} left)`).join(', ');
             const overdueInvoices = (payload.invoices || []).filter(i => i.status === 'overdue').length;
             const outgoing = (payload.payouts || []).filter(p => p.type === 'outgoing').reduce((sum, p) => sum + (p.amount || 0), 0);
+            const lowerPrompt = (prompt || '').toLowerCase();
+            const asksCashFlow = /(cash flow|revenue|expense|balance|profit|budget)/.test(lowerPrompt);
+            const asksInvoices = /(invoice|overdue|pending)/.test(lowerPrompt);
+            const asksStock = /(stock|inventory|product|items)/.test(lowerPrompt);
+            const asksCustomer = /(customer|client)/.test(lowerPrompt);
 
-            return [
-                'Business snapshot generated from the app data:',
-                `• Net revenue stands at ₹${Number(summary.totalRevenue || 0).toLocaleString()}, while total expenses are ₹${Number(summary.totalExpenses || 0).toLocaleString()} and outgoing payments total ₹${Number(outgoing).toLocaleString()}.`,
-                `• Open invoice health shows ${Number(summary.pendingInvoicesCount || 0)} pending invoices, including ${Number(overdueInvoices || summary.overdueInvoicesCount || 0)} overdue.`,
-                `• Customer activity includes ${Number(summary.totalCustomers || 0)} recorded customers, with recent names such as ${topCustomers || 'none yet'}.`,
-                `• Stock position shows ${Number(summary.totalStockUnits || 0)} units on hand, with low-stock items including ${lowStock || 'none'}.`,
-                `• The monthly budget is ₹${Number(summary.monthlyBudget || 0).toLocaleString()}, leaving a net balance of ₹${Number(summary.netBalance || 0).toLocaleString()}.`,
-                'Recommended next step: clear overdue invoices quickly and focus replenishment on products that are low in stock to protect cash flow and service levels.'
-            ].join('\n');
-        }
+            const responseParts = [];
+            responseParts.push(prompt ? `You asked: “${prompt}”.` : 'Business snapshot generated from the app data:');
 
-        async function generateAiOverview() {
-            if (!aiOverviewOutput || !aiOverviewGenerateBtn) return;
-
-            if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_API_KEY') {
-                aiOverviewOutput.textContent = 'The business Gemini key is not configured yet. Replace the placeholder value in the page script.';
-                showToast('Business Gemini key not configured', 'error');
-                return;
+            if (asksCashFlow) {
+                responseParts.push(`Net cash position is ₹${Number(summary.netBalance || 0).toLocaleString()} with ₹${Number(summary.totalRevenue || 0).toLocaleString()} revenue and ₹${Number(summary.totalExpenses || 0).toLocaleString()} expenses.`);
             }
 
-            aiOverviewOutput.textContent = 'Generating business overview...';
-            aiOverviewGenerateBtn.disabled = true;
-            aiOverviewGenerateBtn.textContent = 'Generating...';
-
-            try {
-                const payload = buildAiOverviewPayload();
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 8000);
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    signal: controller.signal,
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{
-                                                text: `You are a business operations analyst. Return only a concise business summary in 5 bullet points. The answer must be complete and end with a full sentence. Do not start with filler text. Never cut off the final sentence. Business data:\n\n${JSON.stringify(payload, null, 2)}`
-                            }]
-                        }],
-                        generationConfig: {
-                            temperature: 0.2,
-                            maxOutputTokens: 160
-                        }
-                    })
-                });
-                clearTimeout(timeoutId);
-
-                const result = await response.json().catch(() => null);
-                const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (!response.ok || !text) {
-                    const rawError = result?.error?.message || await response.text().catch(() => '');
-                    throw new Error(rawError || 'Gemini request failed. Please verify the configured business API key and model access.');
-                }
-
-                const fallbackSummary = buildFallbackAiSummary(buildAiOverviewPayload());
-                const trimmedText = text.trim();
-                const isComplete = /^[A-Za-z0-9].*[.!?]$/.test(trimmedText) && trimmedText.length > 80;
-                aiOverviewOutput.textContent = isComplete ? trimmedText : fallbackSummary;
-                showToast(isComplete ? '✨ AI overview ready' : '💡 Gemini response was incomplete — showing local summary', 'error');
-            } catch (error) {
-                const fallbackSummary = buildFallbackAiSummary(buildAiOverviewPayload());
-                aiOverviewOutput.textContent = fallbackSummary;
-                showToast('💡 Gemini is unavailable right now — showing local summary', 'error');
-            } finally {
-                aiOverviewGenerateBtn.disabled = false;
-                aiOverviewGenerateBtn.textContent = 'Generate Summary';
+            if (asksInvoices) {
+                responseParts.push(`You currently have ${Number(summary.pendingInvoicesCount || 0)} pending invoices, including ${Number(overdueInvoices || summary.overdueInvoicesCount || 0)} overdue.`);
             }
+
+            if (asksStock) {
+                responseParts.push(`Stock position shows ${Number(summary.totalStockUnits || 0)} units on hand, with low-stock items including ${lowStock || 'none'}.`);
+            }
+
+            if (asksCustomer) {
+                responseParts.push(`Customer activity includes ${Number(summary.totalCustomers || 0)} recorded customers, with recent names such as ${topCustomers || 'none yet'}.`);
+            }
+
+            if (!asksCashFlow && !asksInvoices && !asksStock && !asksCustomer) {
+                responseParts.push(`Net revenue stands at ₹${Number(summary.totalRevenue || 0).toLocaleString()}, total expenses are ₹${Number(summary.totalExpenses || 0).toLocaleString()}, and outgoing payments total ₹${Number(outgoing).toLocaleString()}.`);
+                responseParts.push(`Open invoice health shows ${Number(summary.pendingInvoicesCount || 0)} pending invoices, including ${Number(overdueInvoices || summary.overdueInvoicesCount || 0)} overdue.`);
+                responseParts.push(`Customer activity includes ${Number(summary.totalCustomers || 0)} recorded customers, with recent names such as ${topCustomers || 'none yet'}.`);
+                responseParts.push(`Stock position shows ${Number(summary.totalStockUnits || 0)} units on hand, with low-stock items including ${lowStock || 'none'}.`);
+                responseParts.push(`The monthly budget is ₹${Number(summary.monthlyBudget || 0).toLocaleString()}, leaving a net balance of ₹${Number(summary.netBalance || 0).toLocaleString()}.`);
+            }
+
+            responseParts.push('Recommended next step: clear overdue invoices quickly and focus replenishment on products that are low in stock to protect cash flow and service levels.');
+            return responseParts.join('\n');
         }
 
         if (document.getElementById('aiOverviewMenu')) {
@@ -5973,16 +6221,25 @@
             });
         }
 
-        if (aiOverviewCancelBtn) {
-            aiOverviewCancelBtn.addEventListener('click', closeAiOverviewModal);
+        if (aiOverviewCloseBtn) {
+            aiOverviewCloseBtn.addEventListener('click', closeAiOverviewModal);
         }
 
         if (aiOverviewModal) {
             aiOverviewModal.querySelector('.modal-backdrop').addEventListener('click', closeAiOverviewModal);
         }
 
-        if (aiOverviewGenerateBtn) {
-            aiOverviewGenerateBtn.addEventListener('click', generateAiOverview);
+        if (aiOverviewSendBtn) {
+            aiOverviewSendBtn.addEventListener('click', () => askAiOverview(aiOverviewPromptInput?.value || ''));
+        }
+
+        if (aiOverviewPromptInput) {
+            aiOverviewPromptInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    askAiOverview(aiOverviewPromptInput.value);
+                }
+            });
         }
 
         const analyticsActionBtns = document.querySelectorAll('.analytics-action-btn');
