@@ -12,7 +12,7 @@
         const SUPABASE_ANON_KEY = 'sb_publishable_PHr3_x2qmxPOFnGI9vyUPw_lWFrL_kk';
 
         // Enter your Gemini API key here in index.html, or leave this placeholder and store the key in localStorage.
-        const GEMINI_API_KEY_DIRECT = 'AQ.Ab8RN6KK48eMIDKp_UKWPLXxTDeGGXIhn1KLGPy3aANxE3BheQ';
+        const GEMINI_API_KEY_DIRECT = 'AQ.Ab8RN6KWCx22llpYoQ73O93t1dQAdUL89QJQ-O1oYkvyP0mZlQ';
         const GEMINI_MODEL = 'gemini-3.6-flash';
         const GEMINI_API_VERSION = 'v1beta';
 
@@ -5021,6 +5021,17 @@
             border-radius: 999px;
         }
 
+        /* The generic .modal-panel rule sets overflow:hidden, which clips
+           this modal's content (key box + prompt box + output) once it's
+           taller than the available viewport height (very common on mobile,
+           or once the AI reply is long). Give this specific modal its own
+           scroll so nothing gets cut off/unreachable. */
+        #aiOverviewModal .modal-panel {
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+
         .form-group {
             display: flex;
             flex-direction: column;
@@ -6182,35 +6193,36 @@
             try {
                 const payload = buildAiOverviewPayload();
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 8000);
+                const REQUEST_TIMEOUT_MS = 30000;
+                const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
                 let response = null;
                 try {
-                    const apiUrl = new URL(`https://generativelanguage.googleapis.com/${GEMINI_API_VERSION}/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`);
+                    // Uses the Interactions API (v1beta/interactions), Google's current
+                    // recommended endpoint. The older `:generateContent` endpoint is still
+                    // supported, but as of mid-2026 new "Auth key" API keys (the ones
+                    // starting with "AQ." that AI Studio now issues by default) are known
+                    // to be rejected with 401 on that legacy endpoint. Interactions API
+                    // is the endpoint Google is steering everyone to, and it works with
+                    // both old (AIza...) and new (AQ....) key formats.
+                    const apiUrl = `https://generativelanguage.googleapis.com/${GEMINI_API_VERSION}/interactions`;
                     const headers = { 'Content-Type': 'application/json' };
-                    if (GEMINI_API_KEY.startsWith('AIza') || GEMINI_API_KEY.startsWith('AQ.')) {
-                        apiUrl.searchParams.set('key', GEMINI_API_KEY);
-                        headers['x-goog-api-key'] = GEMINI_API_KEY;
-                    } else if (GEMINI_API_KEY.startsWith('ya29.')) {
+                    if (GEMINI_API_KEY.startsWith('ya29.')) {
                         headers.Authorization = `Bearer ${GEMINI_API_KEY}`;
                     } else {
-                        apiUrl.searchParams.set('key', GEMINI_API_KEY);
                         headers['x-goog-api-key'] = GEMINI_API_KEY;
                     }
 
-                    response = await fetch(apiUrl.toString(), {
+                    response = await fetch(apiUrl, {
                         method: 'POST',
                         headers,
                         signal: controller.signal,
                         body: JSON.stringify({
-                            contents: [{
-                                role: 'user',
-                                parts: [{
-                                    text: `You are a business operations assistant for this app. Use the business data in the snapshot to answer the user. Keep the answer concise, practical, and in plain English. User question: ${typedPrompt}\n\nBusiness snapshot:\n\n${JSON.stringify(payload, null, 2)}`
-                                }]
-                            }],
-                            generationConfig: {
+                            model: GEMINI_MODEL,
+                            system_instruction: 'You are a business operations assistant for this app. Use the business data in the snapshot to answer the user. Keep the answer concise, practical, and in plain English.',
+                            input: `User question: ${typedPrompt}\n\nBusiness snapshot:\n\n${JSON.stringify(payload, null, 2)}`,
+                            generation_config: {
                                 temperature: 0.3,
-                                maxOutputTokens: 1024
+                                max_output_tokens: 1024
                             }
                         })
                     });
@@ -6235,12 +6247,16 @@
             } catch (error) {
                 const fallbackSummary = buildFallbackAiSummary(buildAiOverviewPayload(), typedPrompt);
                 const rawError = String(error?.message || '');
-                const authIssue = /401|unauthorized|api key|forbidden|not found/i.test(rawError);
-                const statusNote = /Failed to fetch|network error|abort/i.test(rawError)
-                    ? '\n\nNote: the request did not reach Gemini. This can happen in local file builds or because the browser blocked the request.'
-                    : '';
+                const isTimeout = error?.name === 'AbortError';
+                const authIssue = !isTimeout && /401|unauthorized|unauthenticated|api key|access_token_type|expected oauth|forbidden|not found/i.test(rawError);
+                const isNetworkBlock = !isTimeout && /Failed to fetch|network error|load failed/i.test(rawError);
+                const statusNote = isTimeout
+                    ? `\n\nNote: Gemini did not reply within ${Math.round(REQUEST_TIMEOUT_MS / 1000)} seconds, so the request timed out. This tends to happen on longer questions/answers or a slow connection — try again or ask a shorter question.`
+                    : isNetworkBlock
+                        ? '\n\nNote: the request did not reach Gemini at all (a network error, an ad blocker/extension, or CORS restrictions in a local file build can cause this).'
+                        : '';
                 const note = authIssue
-                    ? '\n\nNote: the current Gemini key or model was rejected by Google, so the app is using a local fallback. Store a real Google AI Studio key that begins with AIza... or AQ... for live Gemini replies.'
+                    ? '\n\nNote: Google rejected the key/credentials (401). If this key is a new "Auth key" (starts with AQ.), regenerate it at aistudio.google.com/api-keys and make sure it is not disabled/unrestricted-blocked, and confirm billing/region are set up for the project. Store a working key using the field below.'
                     : statusNote;
                 aiOverviewOutput.textContent = `${fallbackSummary}${note}\n\nError: ${rawError}`;
                 requestAnimationFrame(() => {
@@ -6256,6 +6272,22 @@
 
         function extractGeminiText(result) {
             if (!result || typeof result !== 'object') return '';
+
+            // Interactions API shape (current, primary): result.steps is an array
+            // of execution steps; the reply lives in steps of type 'model_output'.
+            if (Array.isArray(result.steps)) {
+                const textBlocks = [];
+                result.steps.forEach(step => {
+                    if (step && step.type === 'model_output' && Array.isArray(step.content)) {
+                        step.content.forEach(block => {
+                            if (block && block.type === 'text' && typeof block.text === 'string') {
+                                textBlocks.push(block.text);
+                            }
+                        });
+                    }
+                });
+                if (textBlocks.length) return textBlocks.join('\n').trim();
+            }
 
             const firstCandidate = Array.isArray(result?.candidates) ? result.candidates[0] : null;
             const content = firstCandidate?.content || result?.content || result;
@@ -6316,6 +6348,7 @@
                 if (Array.isArray(node.output)) node.output.forEach(walk);
                 if (Array.isArray(node.candidates)) node.candidates.forEach(walk);
                 if (Array.isArray(node.responses)) node.responses.forEach(walk);
+                if (Array.isArray(node.steps)) node.steps.forEach(walk);
 
                 if (typeof node.candidate === 'object') walk(node.candidate);
                 if (typeof node.message === 'object') walk(node.message);
@@ -6326,6 +6359,7 @@
             walk(result);
             return lines.join('\n').trim();
         }
+
 
         function buildAiOverviewPayload() {
             const snapshot = dataManager.getData();
