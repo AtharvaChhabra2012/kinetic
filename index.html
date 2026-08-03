@@ -12,24 +12,27 @@
         const SUPABASE_ANON_KEY = 'sb_publishable_PHr3_x2qmxPOFnGI9vyUPw_lWFrL_kk';
 
         // Enter your Gemini API key here in index.html, or leave this placeholder and store the key in localStorage.
-        const GEMINI_API_KEY_DIRECT = 'AQ.Ab8RN6KE29NbdNeejBUum_kO1IXR61YLJvoDiMEn7EPYlBBqKQ';
-        const GEMINI_MODEL = 'gemini-3.5-flash';
+        const GEMINI_API_KEY_DIRECT = 'AQ.Ab8RN6KK48eMIDKp_UKWPLXxTDeGGXIhn1KLGPy3aANxE3BheQ';
+        const GEMINI_MODEL = 'gemini-3.6-flash';
+        const GEMINI_API_VERSION = 'v1beta';
 
         function getGeminiApiKey() {
+            try {
+                const storedKey = localStorage.getItem('kinetic_gemini_api_key')?.trim();
+                if (storedKey) return storedKey;
+            } catch (error) {
+                // ignore localStorage failures in private mode
+            }
             if (typeof GEMINI_API_KEY_DIRECT === 'string' && GEMINI_API_KEY_DIRECT !== 'YOUR_GEMINI_API_KEY_HERE') {
                 return GEMINI_API_KEY_DIRECT.trim();
             }
-            try {
-                return localStorage.getItem('kinetic_gemini_api_key')?.trim() || '';
-            } catch (error) {
-                return '';
-            }
+            return '';
         }
 
-        const GEMINI_API_KEY = getGeminiApiKey();
+        let GEMINI_API_KEY = getGeminiApiKey();
 
         function isValidGeminiApiKey(value) {
-            return typeof value === 'string' && /^(?:AIza|AQ\.)[0-9A-Za-z\-_]{35,}$/.test(value.trim());
+            return typeof value === 'string' && /^(?:AIza|AQ\.|ya29\.)[0-9A-Za-z\-_\.]+$/.test(value.trim());
         }
 
         let _currentUser = null;
@@ -2780,6 +2783,14 @@
             <h3 class="modal-title">✨ AI Overview</h3>
             <div class="ai-overview-content">
                 <div class="ai-overview-output" id="aiOverviewOutput">Your business snapshot will appear here after the AI summarizes the stored information.</div>
+                <div class="ai-overview-key-wrap">
+                    <label class="ai-overview-label" for="aiOverviewKey">Gemini API key</label>
+                    <div class="ai-overview-key-row">
+                        <input id="aiOverviewKey" class="ai-overview-key" type="text" placeholder="AQ... or ya29..." autocomplete="off" />
+                        <button type="button" class="btn-submit ai-overview-save-key" id="aiOverviewSaveKey">Save key</button>
+                    </div>
+                    <div class="ai-overview-key-note">Paste a valid key here to override the bundled value without editing index.html. The key is stored locally in your browser.</div>
+                </div>
                 <div class="ai-overview-prompt-wrap">
                     <label class="ai-overview-label" for="aiOverviewPrompt">Ask the AI</label>
                     <div class="ai-overview-composer">
@@ -4907,6 +4918,40 @@
             gap: 10px;
         }
 
+        .ai-overview-key-wrap {
+            margin-bottom: 16px;
+        }
+
+        .ai-overview-key-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .ai-overview-key {
+            flex: 1 1 220px;
+            min-width: 0;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.04);
+            color: #fff;
+            padding: 12px 14px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .ai-overview-key::placeholder {
+            color: rgba(255,255,255,0.45);
+        }
+
+        .ai-overview-key-note {
+            margin-top: 8px;
+            font-size: 12px;
+            color: rgba(255,255,255,0.65);
+            line-height: 1.4;
+        }
+
         .ai-overview-prompt {
             flex: 1;
             min-height: 78px;
@@ -6125,7 +6170,7 @@
                 const sourceMessage = GEMINI_API_KEY_DIRECT !== 'YOUR_GEMINI_API_KEY_HERE'
                     ? 'The key in index.html is invalid or malformed.'
                     : 'No Gemini key is configured in index.html or localStorage.';
-                aiOverviewOutput.textContent = `${sourceMessage} A valid Google AI Studio key is required for live Gemini replies. The app is using the local snapshot fallback until a real key is configured.`;
+                aiOverviewOutput.textContent = `${sourceMessage} A valid Google AI Studio key is required for live Gemini replies. Use an API key that begins with either AIza or AQ.`;
                 showToast('⚠️ Add or fix your Gemini key in index.html', 'error');
                 return;
             }
@@ -6140,11 +6185,23 @@
                 const timeoutId = setTimeout(() => controller.abort(), 8000);
                 let response = null;
                 try {
-                    response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`, {
+                    const apiUrl = new URL(`https://generativelanguage.googleapis.com/${GEMINI_API_VERSION}/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`);
+                    const headers = { 'Content-Type': 'application/json' };
+                    if (GEMINI_API_KEY.startsWith('AIza') || GEMINI_API_KEY.startsWith('AQ.')) {
+                        apiUrl.searchParams.set('key', GEMINI_API_KEY);
+                        headers['x-goog-api-key'] = GEMINI_API_KEY;
+                    } else if (GEMINI_API_KEY.startsWith('ya29.')) {
+                        headers.Authorization = `Bearer ${GEMINI_API_KEY}`;
+                    } else {
+                        apiUrl.searchParams.set('key', GEMINI_API_KEY);
+                        headers['x-goog-api-key'] = GEMINI_API_KEY;
+                    }
+
+                    response = await fetch(apiUrl.toString(), {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers,
                         signal: controller.signal,
-                                body: JSON.stringify({
+                        body: JSON.stringify({
                             contents: [{
                                 role: 'user',
                                 parts: [{
@@ -6183,7 +6240,7 @@
                     ? '\n\nNote: the request did not reach Gemini. This can happen in local file builds or because the browser blocked the request.'
                     : '';
                 const note = authIssue
-                    ? '\n\nNote: the current Gemini key or model was rejected by Google, so the app is using a local fallback. Store a real Google AI Studio key that begins with AIza... for live Gemini replies.'
+                    ? '\n\nNote: the current Gemini key or model was rejected by Google, so the app is using a local fallback. Store a real Google AI Studio key that begins with AIza... or AQ... for live Gemini replies.'
                     : statusNote;
                 aiOverviewOutput.textContent = `${fallbackSummary}${note}\n\nError: ${rawError}`;
                 requestAnimationFrame(() => {
@@ -6199,6 +6256,24 @@
 
         function extractGeminiText(result) {
             if (!result || typeof result !== 'object') return '';
+
+            const firstCandidate = Array.isArray(result?.candidates) ? result.candidates[0] : null;
+            const content = firstCandidate?.content || result?.content || result;
+            if (content) {
+                if (Array.isArray(content.parts)) {
+                    return content.parts.map(part => typeof part?.text === 'string' ? part.text : '').filter(Boolean).join('').trim();
+                }
+                if (typeof content.text === 'string') {
+                    return content.text.trim();
+                }
+            }
+
+            if (typeof result?.output_text === 'string') {
+                return result.output_text.trim();
+            }
+            if (typeof result?.text === 'string') {
+                return result.text.trim();
+            }
 
             const seen = new WeakSet();
             const collected = new Set();
@@ -6225,7 +6300,7 @@
                 });
             };
 
-            const parseNode = (node) => {
+            const walk = (node) => {
                 if (!node || typeof node !== 'object') return;
                 if (seen.has(node)) return;
                 seen.add(node);
@@ -6236,24 +6311,19 @@
                 if (typeof node.message === 'string') addString(node.message);
                 if (typeof node.response === 'string') addString(node.response);
 
-                if (Array.isArray(node.parts)) node.parts.forEach(parseNode);
-                if (Array.isArray(node.content)) node.content.forEach(parseNode);
-                if (Array.isArray(node.output)) node.output.forEach(parseNode);
-                if (Array.isArray(node.candidates)) node.candidates.forEach(parseNode);
-                if (Array.isArray(node.responses)) node.responses.forEach(parseNode);
+                if (Array.isArray(node.parts)) node.parts.forEach(walk);
+                if (Array.isArray(node.content)) node.content.forEach(walk);
+                if (Array.isArray(node.output)) node.output.forEach(walk);
+                if (Array.isArray(node.candidates)) node.candidates.forEach(walk);
+                if (Array.isArray(node.responses)) node.responses.forEach(walk);
 
-                if (typeof node.candidate === 'object') parseNode(node.candidate);
-                if (typeof node.message === 'object') parseNode(node.message);
-                if (typeof node.response === 'object') parseNode(node.response);
-                if (typeof node.result === 'object') parseNode(node.result);
+                if (typeof node.candidate === 'object') walk(node.candidate);
+                if (typeof node.message === 'object') walk(node.message);
+                if (typeof node.response === 'object') walk(node.response);
+                if (typeof node.result === 'object') walk(node.result);
             };
 
-            if (Array.isArray(result.candidates) && result.candidates.length) {
-                parseNode(result.candidates[0]);
-            } else {
-                parseNode(result);
-            }
-
+            walk(result);
             return lines.join('\n').trim();
         }
 
@@ -6345,25 +6415,57 @@
         }
 
         if (aiOverviewSendBtn) {
-            aiOverviewSendBtn.addEventListener('click', () => askAiOverview(aiOverviewPromptInput?.value || ''));
-        }
+                aiOverviewSendBtn.addEventListener('click', () => {
+                    GEMINI_API_KEY = getGeminiApiKey();
+                    askAiOverview(aiOverviewPromptInput?.value || '');
+                });
+            }
 
-        if (aiOverviewPromptInput) {
-            aiOverviewPromptInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    askAiOverview(aiOverviewPromptInput.value);
+            if (aiOverviewPromptInput) {
+                aiOverviewPromptInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        GEMINI_API_KEY = getGeminiApiKey();
+                        askAiOverview(aiOverviewPromptInput.value);
+                    }
+                });
+            }
+
+            const aiOverviewKeyInput = document.getElementById('aiOverviewKey');
+            const aiOverviewSaveKeyBtn = document.getElementById('aiOverviewSaveKey');
+
+            function loadAiOverviewKeyInput() {
+                if (!aiOverviewKeyInput) return;
+                try {
+                    const stored = localStorage.getItem('kinetic_gemini_api_key')?.trim();
+                    aiOverviewKeyInput.value = stored || '';
+                } catch (error) {
+                    aiOverviewKeyInput.value = '';
                 }
-            });
-        }
+            }
 
-        const analyticsActionBtns = document.querySelectorAll('.analytics-action-btn');
-        if (analyticsActionBtns[0]) {
-            analyticsActionBtns[0].addEventListener('click', () => openExportModal('analytics'));
-        }
-        if (analyticsActionBtns[1]) {
-            analyticsActionBtns[1].addEventListener('click', openDateRangeModal);
-        }
+            if (aiOverviewSaveKeyBtn && aiOverviewKeyInput) {
+                aiOverviewSaveKeyBtn.addEventListener('click', () => {
+                    const typedKey = aiOverviewKeyInput.value.trim();
+                    if (!typedKey) {
+                        showToast('Enter a Gemini API key first', 'error');
+                        return;
+                    }
+                    if (!isValidGeminiApiKey(typedKey)) {
+                        showToast('That does not look like a valid Gemini key', 'error');
+                        return;
+                    }
+                    try {
+                        localStorage.setItem('kinetic_gemini_api_key', typedKey);
+                        GEMINI_API_KEY = getGeminiApiKey();
+                        showToast('Gemini API key saved locally', 'success');
+                    } catch (error) {
+                        showToast('Unable to save API key in this browser', 'error');
+                    }
+                });
+            }
+
+            loadAiOverviewKeyInput();
         if (analyticsActionBtns[2]) {
             analyticsActionBtns[2].addEventListener('click', () => {
                 showToast('📊 Loading detailed analytics view...');
